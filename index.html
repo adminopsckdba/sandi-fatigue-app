@@ -9,7 +9,6 @@
   <style>
     .table-container { max-height: 450px; overflow-y: auto; }
     thead th { position: sticky; top: 0; z-index: 10; background-color: #1e293b; color: #f8fafc; }
-    /* Nuansa Industrial Tambang */
     body { background-color: #0f172a; color: #e2e8f0; }
   </style>
 </head>
@@ -60,7 +59,9 @@
 
     <!-- TAB 1: FORM INPUT & VOICE -->
     <div id="viewForm" class="bg-slate-800/60 border border-slate-700/80 p-5 rounded-2xl shadow-xl space-y-4 backdrop-blur">
-      <div class="grid grid-cols-2 gap-3">
+      
+      <!-- Tanggal & Shift (Responsif: Vertikal di HP, Grid di Desktop) -->
+      <div class="space-y-3 sm:space-y-0 sm:grid sm:grid-cols-2 sm:gap-3">
         <div>
           <label class="block text-[11px] font-bold text-amber-400 uppercase tracking-wider mb-1">TANGGAL</label>
           <input type="date" id="dateInput" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-amber-500" required />
