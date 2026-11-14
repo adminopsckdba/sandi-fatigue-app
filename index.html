@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sandi Fatigue & Dashboard Pengawas</title>
+  <link rel="manifest" href="manifest.json" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .table-container { max-height: 450px; overflow-y: auto; }
+    thead th { position: sticky; top: 0; z-index: 10; background-color: #0369a1; color: white; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans pb-12">
+
+  <!-- Header & Status Koneksi -->
+  <header class="bg-sky-900 text-white p-4 shadow-md sticky top-0 z-20 flex justify-between items-center">
+    <div>
+      <h1 class="font-bold text-lg">SANDI FATIGUE CALL</h1>
+      <p class="text-xs text-sky-200">Monitoring Kesiapan & Voice Evidence</p>
+    </div>
+    <div id="netBadge" class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500 text-white">
+      ONLINE
+    </div>
+  </header>
+
+  <!-- Navigasi Tab -->
+  <div class="max-w-4xl mx-auto mt-4 px-4">
+    <div class="flex bg-white rounded-lg shadow p-1 mb-4">
+      <button onclick="switchTab('form')" id="tabFormBtn" class="flex-1 py-2 rounded-md font-semibold text-sm bg-sky-700 text-white">
+        Input Sandi Fatigue
+      </button>
+      <button onclick="switchTab('dash')" id="tabDashBtn" class="flex-1 py-2 rounded-md font-semibold text-sm text-slate-600">
+        Dashboard Roster
+      </button>
+    </div>
+
+    <!-- Banner Antrean Offline -->
+    <div id="offlineQueueBox" class="hidden bg-amber-100 border-l-4 border-amber-500 text-amber-900 p-3 mb-4 rounded shadow flex justify-between items-center">
+      <div>
+        <p class="font-bold text-sm">Ada <span id="queueCount">0</span> data tersimpan Offline</p>
+        <p class="text-xs">Akan otomatis terkirim saat sinyal tersedia.</p>
+      </div>
+      <button onclick="syncOfflineData()" class="bg-amber-600 text-white px-3 py-1.5 rounded text-xs font-bold">
+        Kirim Sekarang
+      </button>
+    </div>
+
+    <!-- TAB 1: FORM INPUT & VOICE -->
+    <div id="viewForm" class="bg-white p-5 rounded-xl shadow-md space-y-4">
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-bold mb-1">TANGGAL</label>
+          <input type="date" id="dateInput" class="w-full border rounded-lg p-2 text-sm" required />
+        </div>
+        <div>
+          <label class="block text-xs font-bold mb-1">SHIFT</label>
+          <select id="shiftInput" class="w-full border rounded-lg p-2 text-sm">
+            <option value="DS">DS (Day Shift)</option>
+            <option value="NS">NS (Night Shift)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Data Pengawas -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-50 p-3 rounded-lg border">
+        <div>
+          <label class="block text-xs font-bold mb-1">SN PENGAWAS</label>
+          <input type="text" id="snPengawas" list="listPengawas" placeholder="Ketik SN / Pilih..." class="w-full border rounded-lg p-2 text-sm" oninput="autoFillNama('pengawas')" />
+          <datalist id="listPengawas"></datalist>
+        </div>
+        <div>
+          <label class="block text-xs font-bold mb-1">NAMA PENGAWAS</label>
+          <input type="text" id="namaPengawas" readonly class="w-full border rounded-lg p-2 text-sm bg-slate-200 font-semibold" />
+        </div>
+      </div>
+
+      <!-- Data Operator & Unit -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-50 p-3 rounded-lg border">
+        <div>
+          <label class="block text-xs font-bold mb-1">ID UNIT</label>
+          <input type="text" id="idUnit" placeholder="Contoh: CO4208" class="w-full border rounded-lg p-2 text-sm uppercase" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold mb-1">SN OPERATOR</label>
+          <input type="text" id="snOperator" list="listOperator" placeholder="Ketik SN / Pilih..." class="w-full border rounded-lg p-2 text-sm" oninput="autoFillNama('operator')" />
+          <datalist id="listOperator"></datalist>
+        </div>
+        <div>
+          <label class="block text-xs font-bold mb-1">NAMA OPERATOR</label>
+          <input type="text" id="namaOperator" readonly class="w-full border rounded-lg p-2 text-sm bg-slate-200 font-semibold" />
+        </div>
+      </div>
+
+      <!-- Validasi Sandi -->
+      <div>
+        <label class="block text-xs font-bold mb-1">Operator/Driver dapat menyebutkan Sandi Fatigue yang sesuai?</label>
+        <div class="flex gap-4 mt-1">
+          <label class="flex items-center gap-2 bg-emerald-50 border border-emerald-300 px-4 py-2 rounded-lg cursor-pointer">
+            <input type="radio" name="sesuai" value="YA" checked /> <span class="font-bold text-emerald-800 text-sm">YA</span>
+          </label>
+          <label class="flex items-center gap-2 bg-rose-50 border border-rose-300 px-4 py-2 rounded-lg cursor-pointer">
+            <input type="radio" name="sesuai" value="TIDAK" /> <span class="font-bold text-rose-800 text-sm">TIDAK</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Voice Evidence: Rekam Langsung ATAU Upload File -->
+      <div class="border-2 border-dashed border-sky-300 rounded-xl p-4 bg-sky-50">
+        <label class="block text-xs font-bold text-sky-900 mb-2">EVIDENCE VOICE (REKAM LANGSUNG ATAU UPLOAD FILE SUARA)</label>
+        
+        <div class="flex flex-wrap gap-2 mb-3">
+          <button type="button" id="btnRecord" onclick="toggleRecording()" class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2">
+            ● Rekam Suara Langsung
+          </button>
+          <label class="bg-sky-700 hover:bg-sky-800 text-white px-4 py-2 rounded-lg text-xs font-bold cursor-pointer">
+            📁 Pilih File Audio (MP3/WAV/M4A/OGG)
+            <input type="file" id="audioFileInput" accept="audio/*,video/*" class="hidden" onchange="handleFileUpload(event)" />
+          </label>
+        </div>
+
+        <p id="recordStatus" class="text-xs font-semibold text-slate-600 mb-2">Belum ada audio dipilih/direkam.</p>
+        <audio id="audioPreview" controls class="w-full hidden h-10"></audio>
+      </div>
+
+      <button onclick="submitData()" id="btnSubmit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow text-sm">
+        KIRIM DATA SANDI FATIGUE
+      </button>
+    </div>
+
+    <!-- TAB 2: DASHBOARD KONTROL ROSTER -->
+    <div id="viewDash" class="hidden bg-white p-4 rounded-xl shadow-md space-y-4">
+      <div class="flex flex-wrap justify-between items-center gap-2 bg-sky-950 text-white p-3 rounded-lg">
+        <div class="flex gap-2 items-center">
+          <input type="date" id="dashDate" onchange="renderDashboard()" class="text-slate-900 text-xs font-bold p-1.5 rounded" />
+          <select id="dashShift" onchange="renderDashboard()" class="text-slate-900 text-xs font-bold p-1.5 rounded">
+            <option value="DS">DS</option>
+            <option value="NS">NS</option>
+          </select>
+        </div>
+        <div class="flex gap-4 text-center text-xs">
+          <div><span class="block text-slate-300">Total Staf</span><b id="statTotal" class="text-base">0</b></div>
+          <div><span class="block text-emerald-300">SUDAH</span><b id="statSudah" class="text-base text-emerald-400">0</b></div>
+          <div><span class="block text-rose-300">BELUM</span><b id="statBelum" class="text-base text-rose-400">0</b></div>
+          <div><span class="block text-amber-300">Persentase</span><b id="statPersen" class="text-base text-amber-400">0%</b></div>
+        </div>
+        <button onclick="fetchMasterAndRoster()" class="bg-sky-600 px-3 py-1.5 rounded text-xs font-bold">↻ Refresh</button>
+      </div>
+
+      <div class="table-container border rounded-lg">
+        <table class="w-full text-xs text-left border-collapse">
+          <thead>
+            <tr>
+              <th class="p-2 border">NO</th>
+              <th class="p-2 border">SN PENGAWAS</th>
+              <th class="p-2 border">NAMA PENGAWAS</th>
+              <th class="p-2 border">ID UNIT</th>
+              <th class="p-2 border">OPERATOR</th>
+              <th class="p-2 border text-center">STATUS</th>
+              <th class="p-2 border">EVIDENCE</th>
+            </tr>
+          </thead>
+          <tbody id="dashTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pop-up Konfirmasi Ringkas -->
+  <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white px-5 py-3 rounded-lg shadow-lg text-sm font-bold hidden z-50">
+    Berhasil dikirim
+  </div>
+
+  <script>
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbyBOpajdZ7MhwxZoJ5e184xHAFGJggeH8hual9nG_aO2jQXU5w0dOP9fMj2HqET55nf/exec";
+
+    let masterKaryawan = JSON.parse(localStorage.getItem("masterKaryawan") || "[]");
+    let rosterData = JSON.parse(localStorage.getItem("rosterData") || "[]");
+    let currentAudioBlob = null;
+    let currentFileName = "";
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let isRecording = false;
+
+    // Inisialisasi Tanggal Hari Ini
+    const today = new Date().toISOString().split("T")[0];
+    document.getElementById("dateInput").value = today;
+    document.getElementById("dashDate").value = today;
+
+    // Registrasi Service Worker (Offline App Shell)
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./sw.js");
+    }
+
+    // Monitor Status Online/Offline
+    window.addEventListener("online", updateOnlineStatus);
+    window.addEventListener("offline", updateOnlineStatus);
+
+    function updateOnlineStatus() {
+      const badge = document.getElementById("netBadge");
+      if (navigator.onLine) {
+        badge.textContent = "ONLINE";
+        badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-emerald-500 text-white";
+        syncOfflineData(); // Otomatis kirim antrean offline saat online kembali
+      } else {
+        badge.textContent = "OFFLINE MODE";
+        badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-rose-600 text-white";
+      }
+    }
+
+    // Ambil Data Master & Roster dari Google Sheets
+    async function fetchMasterAndRoster() {
+      populateDatalists();
+      renderDashboard();
+      if (!navigator.onLine) return;
+
+      try {
+        const res = await fetch(GAS_URL);
+        const json = await res.json();
+        if (json.status === "success") {
+          masterKaryawan = json.karyawan;
+          rosterData = json.roster;
+          localStorage.setItem("masterKaryawan", JSON.stringify(masterKaryawan));
+          localStorage.setItem("rosterData", JSON.stringify(rosterData));
+          populateDatalists();
+          renderDashboard();
+        }
+      } catch (e) {
+        console.log("Menggunakan cache offline:", e);
+      }
+    }
+
+    function populateDatalists() {
+      const dlPengawas = document.getElementById("listPengawas");
+      const dlOperator = document.getElementById("listOperator");
+      dlPengawas.innerHTML = "";
+      dlOperator.innerHTML = "";
+
+      masterKaryawan.forEach(k => {
+        const opt = `<option value="${k.sn}">${k.sn} - ${k.nama}</option>`;
+        if (k.jabatan.toUpperCase().includes("PENGAWAS")) {
+          dlPengawas.innerHTML += opt;
+        } else {
+          dlOperator.innerHTML += opt;
+        }
+      });
+    }
+
+    function autoFillNama(role) {
+      const snVal = document.getElementById(role === "pengawas" ? "snPengawas" : "snOperator").value.trim();
+      const found = masterKaryawan.find(k => k.sn === snVal);
+      document.getElementById(role === "pengawas" ? "namaPengawas" : "namaOperator").value = found ? found.nama : "";
+    }
+
+    // Rekam Suara Langsung dari Browser
+    async function toggleRecording() {
+      const btn = document.getElementById("btnRecord");
+      const status = document.getElementById("recordStatus");
+
+      if (!isRecording) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mediaRecorder = new MediaRecorder(stream);
+          audioChunks = [];
+
+          mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+          mediaRecorder.onstop = () => {
+            currentAudioBlob = new Blob(audioChunks, { type: "audio/webm" });
+            currentFileName = `REC_${Date.now()}.webm`;
+            showAudioPreview(currentAudioBlob, currentFileName);
+          };
+
+          mediaRecorder.start();
+          isRecording = true;
+          btn.textContent = "■ Stop Rekam";
+          btn.classList.replace("bg-rose-600", "bg-slate-800");
+          status.textContent = "Sedang merekam suara...";
+        } catch (err) {
+          alert("Izin mikrofon ditolak atau perangkat tidak mendukung.");
+        }
+      } else {
+        mediaRecorder.stop();
+        isRecording = false;
+        btn.textContent = "● Rekam Suara Langsung";
+        btn.classList.replace("bg-slate-800", "bg-rose-600");
+      }
+    }
+
+    // Upload Semua Jenis File Voice dari HP/Laptop
+    function handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      currentAudioBlob = file;
+      currentFileName = file.name;
+      showAudioPreview(file, file.name);
+    }
+
+    function showAudioPreview(blob, name) {
+      const preview = document.getElementById("audioPreview");
+      preview.src = URL.createObjectURL(blob);
+      preview.classList.remove("hidden");
+      document.getElementById("recordStatus").textContent = `File siap: ${name}`;
+    }
+
+    // Konversi Blob Audio ke Base64
+    function blobToBase64(blob) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result.split(",")[1]);
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    // Simpan ke IndexedDB (Antrean Offline)
+    function openDB() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open("SandiFatigueDB", 1);
+        req.onupgradeneeded = e => e.target.result.createObjectStore("queue", { keyPath: "id", autoIncrement: true });
+        req.onsuccess = e => resolve(e.target.result);
+        req.onerror = e => reject(e);
+      });
+    }
+
+    async function saveToOfflineQueue(payload) {
+      const db = await openDB();
+      const tx = db.transaction("queue", "readwrite");
+      tx.objectStore("queue").add(payload);
+      updateQueueCount();
+    }
+
+    async function updateQueueCount() {
+      const db = await openDB();
+      const tx = db.transaction("queue", "readonly");
+      const req = tx.objectStore("queue").getAll();
+      req.onsuccess = () => {
+        const count = req.result.length;
+        document.getElementById("queueCount").textContent = count;
+        document.getElementById("offlineQueueBox").classList.toggle("hidden", count === 0);
+      };
+    }
+
+    // Proses Submit Data
+    async function submitData() {
+      const snPengawas = document.getElementById("snPengawas").value.trim();
+      const namaPengawas = document.getElementById("namaPengawas").value.trim();
+      const idUnit = document.getElementById("idUnit").value.trim().toUpperCase();
+      const snOperator = document.getElementById("snOperator").value.trim();
+      const namaOperator = document.getElementById("namaOperator").value.trim();
+
+      if (!snPengawas || !namaPengawas || !idUnit || !snOperator) {
+        alert("Lengkapi SN Pengawas, ID Unit, dan SN Operator!");
+        return;
+      }
+
+      const btn = document.getElementById("btnSubmit");
+      btn.disabled = true;
+      btn.textContent = "Memproses...";
+
+      let audioBase64 = "";
+      let mimeType = "";
+      if (currentAudioBlob) {
+        audioBase64 = await blobToBase64(currentAudioBlob);
+        mimeType = currentAudioBlob.type;
+      }
+
+      const payload = {
+        date: document.getElementById("dateInput").value,
+        shift: document.getElementById("shiftInput").value,
+        snPengawas,
+        namaPengawas,
+        idUnit,
+        snOperator,
+        namaOperator,
+        sesuai: document.querySelector('input[name="sesuai"]:checked').value,
+        audioBase64,
+        mimeType,
+        fileName: currentFileName
+      };
+
+      if (navigator.onLine) {
+        try {
+          await fetch(GAS_URL, {
+            method: "POST",
+            mode: "no-cors",
+            body: JSON.stringify(payload)
+          });
+          showToast("Berhasil dikirim");
+          resetForm();
+          setTimeout(fetchMasterAndRoster, 2000);
+        } catch (err) {
+          await saveToOfflineQueue(payload);
+          showToast("Disimpan offline, akan dikirim saat sinyal stabil");
+          resetForm();
+        }
+      } else {
+        await saveToOfflineQueue(payload);
+        showToast("Offline: Berhasil disimpan di antrean HP");
+        resetForm();
+      }
+
+      btn.disabled = false;
+      btn.textContent = "KIRIM DATA SANDI FATIGUE";
+    }
+
+    // Sinkronisasi Antrean Offline ke Google Drive & Spreadsheet
+    async function syncOfflineData() {
+      if (!navigator.onLine) return;
+      const db = await openDB();
+      const tx = db.transaction("queue", "readonly");
+      const req = tx.objectStore("queue").getAll();
+
+      req.onsuccess = async () => {
+        const items = req.result;
+        if (items.length === 0) return;
+
+        for (const item of items) {
+          try {
+            await fetch(GAS_URL, {
+              method: "POST",
+              mode: "no-cors",
+              body: JSON.stringify(item)
+            });
+            const delTx = db.transaction("queue", "readwrite");
+            delTx.objectStore("queue").delete(item.id);
+          } catch (e) {
+            console.error("Gagal sync item:", e);
+          }
+        }
+        updateQueueCount();
+        showToast("Semua data offline berhasil terkirim!");
+        setTimeout(fetchMasterAndRoster, 2000);
+      };
+    }
+
+    function resetForm() {
+      document.getElementById("idUnit").value = "";
+      document.getElementById("snOperator").value = "";
+      document.getElementById("namaOperator").value = "";
+      document.getElementById("audioFileInput").value = "";
+      document.getElementById("audioPreview").classList.add("hidden");
+      document.getElementById("recordStatus").textContent = "Belum ada audio dipilih/direkam.";
+      currentAudioBlob = null;
+      currentFileName = "";
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById("toast");
+      t.textContent = msg;
+      t.classList.remove("hidden");
+      setTimeout(() => t.classList.add("hidden"), 3000);
+    }
+
+    // Render Dashboard Roster (Kontrol Sudah / Belum)
+    function renderDashboard() {
+      const filterDate = document.getElementById("dashDate").value;
+      const filterShift = document.getElementById("dashShift").value;
+      const tbody = document.getElementById("dashTableBody");
+      tbody.innerHTML = "";
+
+      const filtered = rosterData.filter(r => r.date === filterDate && r.shift === filterShift);
+      let sudahCount = 0;
+
+      filtered.forEach((row, idx) => {
+        const isSudah = row.status === "SUDAH";
+        if (isSudah) sudahCount++;
+
+        const badge = isSudah
+          ? `<span class="bg-emerald-500 text-white px-2 py-0.5 rounded font-bold">SUDAH</span>`
+          : `<span class="bg-rose-600 text-white px-2 py-0.5 rounded font-bold">BELUM</span>`;
+
+        const link = row.evidence.startsWith("http")
+          ? `<a href="${row.evidence}" target="_blank" class="text-sky-600 underline">Buka Audio</a>`
+          : `<span class="text-slate-400">${row.evidence || "-"}</span>`;
+
+        tbody.innerHTML += `
+          <tr class="border-b hover:bg-slate-50">
+            <td class="p-2 border">${idx + 1}</td>
+            <td class="p-2 border font-mono">${row.snPengawas}</td>
+            <td class="p-2 border font-semibold">${row.namaPengawas}</td>
+            <td class="p-2 border">${row.idUnit || "-"}</td>
+            <td class="p-2 border">${row.namaOperator || "-"}</td>
+            <td class="p-2 border text-center">${badge}</td>
+            <td class="p-2 border">${link}</td>
+          </tr>
+        `;
+      });
+
+      const total = filtered.length;
+      const belum = total - sudahCount;
+      const persen = total > 0 ? Math.round((sudahCount / total) * 100) : 0;
+
+      document.getElementById("statTotal").textContent = total;
+      document.getElementById("statSudah").textContent = sudahCount;
+      document.getElementById("statBelum").textContent = belum;
+      document.getElementById("statPersen").textContent = `${persen}%`;
+    }
+
+    function switchTab(tab) {
+      document.getElementById("viewForm").classList.toggle("hidden", tab !== "form");
+      document.getElementById("viewDash").classList.toggle("hidden", tab !== "dash");
+      document.getElementById("tabFormBtn").className = tab === "form"
+        ? "flex-1 py-2 rounded-md font-semibold text-sm bg-sky-700 text-white"
+        : "flex-1 py-2 rounded-md font-semibold text-sm text-slate-600";
+      document.getElementById("tabDashBtn").className = tab === "dash"
+        ? "flex-1 py-2 rounded-md font-semibold text-sm bg-sky-700 text-white"
+        : "flex-1 py-2 rounded-md font-semibold text-sm text-slate-600";
+    }
+
+    // Jalankan saat halaman dibuka
+    updateOnlineStatus();
+    updateQueueCount();
+    fetchMasterAndRoster();
+  </script>
+</body>
+</html>
