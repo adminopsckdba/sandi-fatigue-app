@@ -105,22 +105,27 @@
         </div>
       </div>
 
-      <!-- Voice Evidence: Rekam Langsung ATAU Upload File -->
+      <!-- Voice Evidence: Rekam Langsung & Tombol Reset/Hapus -->
       <div class="border-2 border-dashed border-sky-300 rounded-xl p-4 bg-sky-50">
-        <label class="block text-xs font-bold text-sky-900 mb-2">EVIDENCE VOICE (REKAM LANGSUNG ATAU UPLOAD FILE SUARA)</label>
+        <label class="block text-xs font-bold text-sky-900 mb-2">EVIDENCE VOICE (REKAM LANGSUNG ATAU UPLOAD FILE)</label>
         
         <div class="flex flex-wrap gap-2 mb-3">
           <button type="button" id="btnRecord" onclick="toggleRecording()" class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2">
             ● Rekam Suara Langsung
           </button>
+          
+          <button type="button" id="btnResetAudio" onclick="resetAudioRecording()" class="hidden bg-slate-600 hover:bg-slate-700 text-white px-3 py-2 rounded-lg text-xs font-bold">
+            🗑️ Hapus / Ulangi Rekaman
+          </button>
+
           <label class="bg-sky-700 hover:bg-sky-800 text-white px-4 py-2 rounded-lg text-xs font-bold cursor-pointer">
-            📁 Pilih File Audio (MP3/WAV/M4A/OGG)
+            📁 Pilih File Audio (MP3/WAV/M4A)
             <input type="file" id="audioFileInput" accept="audio/*,video/*" class="hidden" onchange="handleFileUpload(event)" />
           </label>
         </div>
 
         <p id="recordStatus" class="text-xs font-semibold text-slate-600 mb-2">Belum ada audio dipilih/direkam.</p>
-        <audio id="audioPreview" controls class="w-full hidden h-10"></audio>
+        <audio id="audioPreview" controls class="w-full hidden h-10 mt-2"></audio>
       </div>
 
       <button onclick="submitData()" id="btnSubmit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow text-sm">
@@ -166,12 +171,13 @@
     </div>
   </div>
 
-  <!-- Pop-up Konfirmasi Ringkas -->
+  <!-- Toast Notifikasi -->
   <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white px-5 py-3 rounded-lg shadow-lg text-sm font-bold hidden z-50">
     Berhasil dikirim
   </div>
 
   <script>
+    // MASUKKAN URL WEB APP APPS SCRIPT ANDA DI BAWAH INI
     const GAS_URL = "https://script.google.com/macros/s/AKfycbyBOpajdZ7MhwxZoJ5e184xHAFGJggeH8hual9nG_aO2jQXU5w0dOP9fMj2HqET55nf/exec";
 
     let masterKaryawan = JSON.parse(localStorage.getItem("masterKaryawan") || "[]");
@@ -182,17 +188,14 @@
     let audioChunks = [];
     let isRecording = false;
 
-    // Inisialisasi Tanggal Hari Ini
     const today = new Date().toISOString().split("T")[0];
     document.getElementById("dateInput").value = today;
     document.getElementById("dashDate").value = today;
 
-    // Registrasi Service Worker (Offline App Shell)
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("./sw.js");
+      navigator.serviceWorker.register("./sw.js").catch(() => {});
     }
 
-    // Monitor Status Online/Offline
     window.addEventListener("online", updateOnlineStatus);
     window.addEventListener("offline", updateOnlineStatus);
 
@@ -201,14 +204,13 @@
       if (navigator.onLine) {
         badge.textContent = "ONLINE";
         badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-emerald-500 text-white";
-        syncOfflineData(); // Otomatis kirim antrean offline saat online kembali
+        syncOfflineData();
       } else {
         badge.textContent = "OFFLINE MODE";
         badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-rose-600 text-white";
       }
     }
 
-    // Ambil Data Master & Roster dari Google Sheets
     async function fetchMasterAndRoster() {
       populateDatalists();
       renderDashboard();
@@ -226,7 +228,7 @@
           renderDashboard();
         }
       } catch (e) {
-        console.log("Menggunakan cache offline:", e);
+        console.log("Menggunakan cache offline");
       }
     }
 
@@ -252,10 +254,11 @@
       document.getElementById(role === "pengawas" ? "namaPengawas" : "namaOperator").value = found ? found.nama : "";
     }
 
-    // Rekam Suara Langsung dari Browser
+    // Rekam Suara Langsung
     async function toggleRecording() {
       const btn = document.getElementById("btnRecord");
       const status = document.getElementById("recordStatus");
+      const btnReset = document.getElementById("btnResetAudio");
 
       if (!isRecording) {
         try {
@@ -266,27 +269,45 @@
           mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
           mediaRecorder.onstop = () => {
             currentAudioBlob = new Blob(audioChunks, { type: "audio/webm" });
-            currentFileName = `REC_${Date.now()}.webm`;
+            currentFileName = `REC_FATIGUE_${Date.now()}.webm`;
             showAudioPreview(currentAudioBlob, currentFileName);
+            stream.getTracks().forEach(track => track.stop());
           };
 
           mediaRecorder.start();
           isRecording = true;
           btn.textContent = "■ Stop Rekam";
-          btn.classList.replace("bg-rose-600", "bg-slate-800");
-          status.textContent = "Sedang merekam suara...";
+          btn.classList.replace("bg-rose-600", "bg-amber-600");
+          status.textContent = "🔴 Sedang merekam suara...";
+          btnReset.classList.add("hidden");
         } catch (err) {
-          alert("Izin mikrofon ditolak atau perangkat tidak mendukung.");
+          alert("Gagal mengakses mikrofon. Izinkan akses mic di browser HP Anda.");
         }
       } else {
         mediaRecorder.stop();
         isRecording = false;
-        btn.textContent = "● Rekam Suara Langsung";
-        btn.classList.replace("bg-slate-800", "bg-rose-600");
+        btn.textContent = "● Rekam Ulang";
+        btn.classList.replace("bg-amber-600", "bg-rose-600");
+        btnReset.classList.remove("hidden");
       }
     }
 
-    // Upload Semua Jenis File Voice dari HP/Laptop
+    function resetAudioRecording() {
+      currentAudioBlob = null;
+      currentFileName = "";
+      audioChunks = [];
+      
+      const preview = document.getElementById("audioPreview");
+      preview.pause();
+      preview.src = "";
+      preview.classList.add("hidden");
+
+      document.getElementById("recordStatus").textContent = "Belum ada audio dipilih/direkam.";
+      document.getElementById("btnRecord").textContent = "● Rekam Suara Langsung";
+      document.getElementById("btnResetAudio").classList.add("hidden");
+      document.getElementById("audioFileInput").value = "";
+    }
+
     function handleFileUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -299,10 +320,10 @@
       const preview = document.getElementById("audioPreview");
       preview.src = URL.createObjectURL(blob);
       preview.classList.remove("hidden");
-      document.getElementById("recordStatus").textContent = `File siap: ${name}`;
+      document.getElementById("recordStatus").textContent = `✅ File siap: ${name}`;
+      document.getElementById("btnResetAudio").classList.remove("hidden");
     }
 
-    // Konversi Blob Audio ke Base64
     function blobToBase64(blob) {
       return new Promise((resolve) => {
         const reader = new FileReader();
@@ -311,7 +332,6 @@
       });
     }
 
-    // Simpan ke IndexedDB (Antrean Offline)
     function openDB() {
       return new Promise((resolve, reject) => {
         const req = indexedDB.open("SandiFatigueDB", 1);
@@ -339,7 +359,6 @@
       };
     }
 
-    // Proses Submit Data
     async function submitData() {
       const snPengawas = document.getElementById("snPengawas").value.trim();
       const namaPengawas = document.getElementById("namaPengawas").value.trim();
@@ -384,25 +403,27 @@
             mode: "no-cors",
             body: JSON.stringify(payload)
           });
-          showToast("Berhasil dikirim");
+          showToast("Berhasil dikirim ke Server!");
           resetForm();
+          resetAudioRecording();
           setTimeout(fetchMasterAndRoster, 2000);
         } catch (err) {
           await saveToOfflineQueue(payload);
-          showToast("Disimpan offline, akan dikirim saat sinyal stabil");
+          showToast("Disimpan offline (Gagal koneksi)");
           resetForm();
+          resetAudioRecording();
         }
       } else {
         await saveToOfflineQueue(payload);
-        showToast("Offline: Berhasil disimpan di antrean HP");
+        showToast("Offline: Tersimpan di antrean HP");
         resetForm();
+        resetAudioRecording();
       }
 
       btn.disabled = false;
       btn.textContent = "KIRIM DATA SANDI FATIGUE";
     }
 
-    // Sinkronisasi Antrean Offline ke Google Drive & Spreadsheet
     async function syncOfflineData() {
       if (!navigator.onLine) return;
       const db = await openDB();
@@ -423,11 +444,11 @@
             const delTx = db.transaction("queue", "readwrite");
             delTx.objectStore("queue").delete(item.id);
           } catch (e) {
-            console.error("Gagal sync item:", e);
+            console.error("Gagal sync:", e);
           }
         }
         updateQueueCount();
-        showToast("Semua data offline berhasil terkirim!");
+        showToast("Semua data offline berhasil disinkronkan!");
         setTimeout(fetchMasterAndRoster, 2000);
       };
     }
@@ -437,10 +458,6 @@
       document.getElementById("snOperator").value = "";
       document.getElementById("namaOperator").value = "";
       document.getElementById("audioFileInput").value = "";
-      document.getElementById("audioPreview").classList.add("hidden");
-      document.getElementById("recordStatus").textContent = "Belum ada audio dipilih/direkam.";
-      currentAudioBlob = null;
-      currentFileName = "";
     }
 
     function showToast(msg) {
@@ -450,7 +467,6 @@
       setTimeout(() => t.classList.add("hidden"), 3000);
     }
 
-    // Render Dashboard Roster (Kontrol Sudah / Belum)
     function renderDashboard() {
       const filterDate = document.getElementById("dashDate").value;
       const filterShift = document.getElementById("dashShift").value;
@@ -506,7 +522,6 @@
         : "flex-1 py-2 rounded-md font-semibold text-sm text-slate-600";
     }
 
-    // Jalankan saat halaman dibuka
     updateOnlineStatus();
     updateQueueCount();
     fetchMasterAndRoster();
